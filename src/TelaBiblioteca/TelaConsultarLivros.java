@@ -171,7 +171,7 @@ public class TelaConsultarLivros extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnConsultarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnConsultarActionPerformed
-String codigoBarras = txtCodigoBarras.getText().trim();
+    String codigoBarras = txtCodigoBarras.getText().trim();
     String nomeLivro = txtNomeLivro.getText().trim();
     String nomeAutor = txtNomeAutor.getText().trim();
 

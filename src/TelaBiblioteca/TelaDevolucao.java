@@ -146,7 +146,7 @@ public class TelaDevolucao extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnBuscarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarActionPerformed
-     String cpfLeitor = jTextField2.getText().trim();
+   String cpfLeitor = jTextField2.getText().trim();
     
     if (cpfLeitor.isEmpty()) {
         JOptionPane.showMessageDialog(this, "Por favor, informe o CPF do leitor.");
