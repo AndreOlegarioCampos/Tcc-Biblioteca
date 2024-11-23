@@ -206,7 +206,7 @@ public class TelaDevolucao extends javax.swing.JFrame {
     }//GEN-LAST:event_btnBuscarActionPerformed
 
     private void btnDevolverActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDevolverActionPerformed
-     // Obtém o modelo da tabela
+     // Obtém o modelo da tabela de livros
     DefaultTableModel model = (DefaultTableModel) jtabelaLivros.getModel();
     
     // Verifica se há livros selecionados
@@ -234,13 +234,24 @@ public class TelaDevolucao extends javax.swing.JFrame {
                 stmt.executeUpdate();
             }
             
+            // Remover o empréstimo da tabela 'emprestimos'
+            String sqlDeleteEmprestimo = "DELETE FROM emprestimos WHERE codigo_livro = ? AND id_leitor = ?";
+            try (PreparedStatement stmtDeleteEmprestimo = conn.prepareStatement(sqlDeleteEmprestimo)) {
+                // Substituir 'id_leitor' pelo id do leitor que pegou o livro (usando o método getIdLeitorByCpf)
+                String cpfLeitor = jTextField2.getText().trim();
+                int idLeitor = getIdLeitorByCpf(cpfLeitor, conn); // Agora a função vai funcionar
+                stmtDeleteEmprestimo.setString(1, codigoBarras);
+                stmtDeleteEmprestimo.setInt(2, idLeitor);
+                stmtDeleteEmprestimo.executeUpdate();
+            }
+
             model.removeRow(rowIndex); // Remove a linha da tabela
         }
 
         // Completa a transação
         conn.commit();
     } catch (SQLException e) {
-        JOptionPane.showMessageDialog(this, "Erro ao atualizar disponibilidade do livro: " + e.getMessage());
+        JOptionPane.showMessageDialog(this, "Erro ao atualizar disponibilidade do livro ou remover o empréstimo: " + e.getMessage());
         return; // Retorna em caso de erro
     }
 
@@ -249,7 +260,7 @@ public class TelaDevolucao extends javax.swing.JFrame {
         livrosDevolvidos.setLength(livrosDevolvidos.length() - 2);
     }
 
-    // Atualiza a lista de livros do leitor sem limpar datas
+    // Atualiza a lista de livros do leitor
     String cpf = jTextField2.getText().trim();
     String sqlUpdateLeitor = "UPDATE leitores SET livros = '' WHERE cpf = ?";
     try (Connection conn = DataBaseBiblioteca.getConnection();
@@ -263,6 +274,23 @@ public class TelaDevolucao extends javax.swing.JFrame {
     JOptionPane.showMessageDialog(this, "Devolução finalizada com sucesso! Livros devolvidos: " + livrosDevolvidos);
     txtNomeLeitor.setText(""); // Limpa o campo de nome
     jTextField2.setText(""); // Limpa o campo de CPF
+}   
+
+// Método para buscar o ID do leitor pelo CPF
+private int getIdLeitorByCpf(String cpf, Connection conn) throws SQLException {
+    String sql = "SELECT id_leitor FROM leitores WHERE cpf = ?";
+    
+    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        stmt.setString(1, cpf);  // Define o CPF na consulta
+
+        try (ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("id_leitor"); // Retorna o ID do leitor
+            } else {
+                throw new SQLException("Leitor não encontrado com o CPF: " + cpf);
+            }
+        }
+    }
     }//GEN-LAST:event_btnDevolverActionPerformed
 
     private void btnVoltarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnVoltarActionPerformed

@@ -519,23 +519,39 @@ DefaultTableModel modeloCarrinho = (DefaultTableModel) jTabelaCarrinho.getModel(
 
     private void btnFinalizarEmprestimoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFinalizarEmprestimoActionPerformed
   // Seleciona o leitor
-    int selectedRowLeitor = jTabelaLeitor.getSelectedRow();
-    if (selectedRowLeitor == -1) {
-        JOptionPane.showMessageDialog(this, "Por favor, selecione um leitor.");
-        return;
+int selectedRowLeitor = jTabelaLeitor.getSelectedRow();
+if (selectedRowLeitor == -1) {
+    JOptionPane.showMessageDialog(this, "Por favor, selecione um leitor.");
+    return;
+}
+
+// Obtém o ID do leitor
+Object idValue = jTabelaLeitor.getValueAt(selectedRowLeitor, 1); // ID está na coluna 1
+int leitorId;
+try {
+    leitorId = Integer.parseInt(idValue.toString());
+} catch (NumberFormatException e) {
+    JOptionPane.showMessageDialog(this, "ID do leitor não é válido.");
+    return;
+}
+
+Connection conn = null;
+try {
+    conn = DataBaseBiblioteca.getConnection();
+    conn.setAutoCommit(false); // Inicia a transação
+
+    // 1. Verifica se o ID do leitor existe na tabela "leitores"
+    String sqlCheckLeitor = "SELECT COUNT(*) FROM leitores WHERE id_leitor = ?";
+    try (PreparedStatement stmtCheckLeitor = conn.prepareStatement(sqlCheckLeitor)) {
+        stmtCheckLeitor.setInt(1, leitorId);
+        ResultSet rsLeitor = stmtCheckLeitor.executeQuery();
+        if (rsLeitor.next() && rsLeitor.getInt(1) == 0) {
+            JOptionPane.showMessageDialog(this, "Leitor não encontrado.");
+            return; // Sai do método, sem continuar o processo
+        }
     }
 
-    // Obtém o ID do leitor
-    Object idValue = jTabelaLeitor.getValueAt(selectedRowLeitor, 1); // ID está na coluna 1
-    int leitorId;
-    try {
-        leitorId = Integer.parseInt(idValue.toString());
-    } catch (NumberFormatException e) {
-        JOptionPane.showMessageDialog(this, "ID do leitor não é válido.");
-        return;
-    }
-
-    // Verifica se há livros no carrinho
+    // 2. Verifica se há livros no carrinho
     DefaultTableModel modeloCarrinho = (DefaultTableModel) jTabelaCarrinho.getModel();
     if (modeloCarrinho.getRowCount() == 0) {
         JOptionPane.showMessageDialog(this, "O carrinho está vazio. Adicione pelo menos um livro.");
@@ -548,70 +564,67 @@ DefaultTableModel modeloCarrinho = (DefaultTableModel) jTabelaCarrinho.getModel(
         codigosLivros.add(codigoBarras);
     }
 
-    Connection conn = null;
-    try {
-        conn = DataBaseBiblioteca.getConnection();
-        conn.setAutoCommit(false); // Inicia a transação
-
-        // 1. Atualiza a tabela de leitores (se necessário)
-        String sqlUpdateLeitor = "UPDATE leitores SET Livros = ? WHERE id_leitor = ?";
-        try (PreparedStatement stmtUpdateLeitor = conn.prepareStatement(sqlUpdateLeitor)) {
-            String livrosEmprestados = String.join(", ", codigosLivros);
-            stmtUpdateLeitor.setString(1, livrosEmprestados);
-            stmtUpdateLeitor.setInt(2, leitorId);
-            stmtUpdateLeitor.executeUpdate();
-        }
-
-        // 2. Atualiza a disponibilidade dos livros
-        String sqlUpdateLivro = "UPDATE livros SET disponivel = FALSE WHERE codBarras = ?";
-        try (PreparedStatement stmtUpdateLivro = conn.prepareStatement(sqlUpdateLivro)) {
-            for (String codigoBarras : codigosLivros) {
-                stmtUpdateLivro.setString(1, codigoBarras);
-                stmtUpdateLivro.executeUpdate();
-            }
-        }
-
-        // 3. Insere o empréstimo na tabela "emprestimos"
-        String sqlInsertEmprestimo = "INSERT INTO emprestimos (id_leitor, codigo_livro, status) VALUES (?, ?, ?)";
-        try (PreparedStatement stmtInsertEmprestimo = conn.prepareStatement(sqlInsertEmprestimo)) {
-            for (String codigoBarras : codigosLivros) {
-                stmtInsertEmprestimo.setInt(1, leitorId); // ID do leitor
-                stmtInsertEmprestimo.setString(2, codigoBarras); // Código do livro
-                stmtInsertEmprestimo.setString(3, "Em Andamento"); // Status do empréstimo
-                stmtInsertEmprestimo.executeUpdate();
-            }
-        }
-
-        // Comita as transações (salva no banco)
-        conn.commit();
-
-        // Limpa o carrinho e exibe uma mensagem de sucesso
-        modeloCarrinho.setRowCount(0); // Limpa o carrinho
-        JOptionPane.showMessageDialog(this, "Empréstimo finalizado com sucesso!");
-       
-    } catch (SQLException e) {
-        // Caso haja erro, faz rollback da transação
-        if (conn != null) {
-            try {
-                conn.rollback(); // Faz o rollback se algo der errado
-            } catch (SQLException rollbackEx) {
-                rollbackEx.printStackTrace(); // Mostra o erro do rollback
-            }
-        }
-        JOptionPane.showMessageDialog(this, "Erro ao finalizar o empréstimo: " + e.getMessage());
-        e.printStackTrace();
-    } finally {
-        // Garante que a conexão será fechada, se aberta
-        if (conn != null) {
-            try {
-                conn.setAutoCommit(true); // Restaura o modo de commit automático
-                conn.close(); // Fecha a conexão
-            } catch (SQLException closeEx) {
-                closeEx.printStackTrace();
-            }
+    // 3. Atualiza a disponibilidade dos livros
+    String sqlUpdateLivro = "UPDATE livros SET disponivel = FALSE WHERE codBarras = ?";
+    try (PreparedStatement stmtUpdateLivro = conn.prepareStatement(sqlUpdateLivro)) {
+        for (String codigoBarras : codigosLivros) {
+            stmtUpdateLivro.setString(1, codigoBarras);
+            stmtUpdateLivro.executeUpdate();
         }
     }
-    
+
+    // 4. Insere o empréstimo na tabela "emprestimos"
+    String sqlInsertEmprestimo = "INSERT INTO emprestimos (id_leitor, codigo_livro, status) VALUES (?, ?, ?)";
+    try (PreparedStatement stmtInsertEmprestimo = conn.prepareStatement(sqlInsertEmprestimo)) {
+        for (String codigoBarras : codigosLivros) {
+            stmtInsertEmprestimo.setInt(1, leitorId); // ID do leitor
+            stmtInsertEmprestimo.setString(2, codigoBarras); // Código do livro
+            stmtInsertEmprestimo.setString(3, "Em Andamento"); // Status do empréstimo
+            stmtInsertEmprestimo.executeUpdate();
+        }
+    }
+
+    // 5. Atualiza a coluna 'livros' na tabela 'leitores'
+    String sqlUpdateLivrosLeitor = "UPDATE leitores SET livros = CONCAT(livros, ?, ', ') WHERE id_leitor = ?";
+    try (PreparedStatement stmtUpdateLivrosLeitor = conn.prepareStatement(sqlUpdateLivrosLeitor)) {
+        for (String codigoBarras : codigosLivros) {
+            stmtUpdateLivrosLeitor.setString(1, codigoBarras); // Adiciona o código de barras do livro
+            stmtUpdateLivrosLeitor.setInt(2, leitorId); // ID do leitor
+            stmtUpdateLivrosLeitor.executeUpdate();
+        }
+    }
+
+    // Comita as transações (salva no banco)
+    conn.commit();
+
+    // Limpa o carrinho e exibe uma mensagem de sucesso
+    modeloCarrinho.setRowCount(0); // Limpa o carrinho
+    JOptionPane.showMessageDialog(this, "Empréstimo finalizado com sucesso!");
+   
+} catch (SQLException e) {
+    // Caso haja erro, faz rollback da transação
+    if (conn != null) {
+        try {
+            conn.rollback(); // Faz o rollback se algo der errado
+        } catch (SQLException rollbackEx) {
+            rollbackEx.printStackTrace(); // Mostra o erro do rollback
+        }
+    }
+    JOptionPane.showMessageDialog(this, "Erro ao finalizar o empréstimo: " + e.getMessage());
+    e.printStackTrace();
+} finally {
+    // Garante que a conexão será fechada, se aberta
+    if (conn != null) {
+        try {
+            conn.setAutoCommit(true); // Restaura o modo de commit automático
+            conn.close(); // Fecha a conexão
+        } catch (SQLException closeEx) {
+            closeEx.printStackTrace();
+        }
+    }
+}
+
+
     }//GEN-LAST:event_btnFinalizarEmprestimoActionPerformed
 
     private void btnCancelarEmprestimoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCancelarEmprestimoActionPerformed

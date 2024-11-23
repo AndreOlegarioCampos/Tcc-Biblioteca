@@ -212,33 +212,34 @@ public class TelaCadastroLivro extends javax.swing.JFrame {
 
     private void btnCadastrarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCadastrarActionPerformed
     String nomeLivro = txtNomeLivro.getText().trim();
-    String nomeAutor = txtNomeAutor.getText().trim();
-    String edicao = txtEdicao.getText().trim();
-    String codigoBarras = txtCodigoBarras.getText().trim();
+String nomeAutor = txtNomeAutor.getText().trim();
+String edicao = txtEdicao.getText().trim();
+String codigoBarras = txtCodigoBarras.getText().trim();
 
-    // Verificação de campos obrigatórios
-    if (nomeLivro.isEmpty() || nomeAutor.isEmpty() || codigoBarras.isEmpty()) {
-        JOptionPane.showMessageDialog(this, "Por favor, preencha todos os campos obrigatórios.");
-        return;
-    }
+// Verificação de campos obrigatórios
+if (nomeLivro.isEmpty() || nomeAutor.isEmpty() || codigoBarras.isEmpty()) {
+    JOptionPane.showMessageDialog(this, "Por favor, preencha todos os campos obrigatórios.");
+    return;
+}
 
-    try (Connection conn = DataBaseBiblioteca.getConnection();
-         PreparedStatement stmt = conn.prepareStatement("INSERT INTO livros (nomeLivro, nomeAutor, edicao, codBarras) VALUES (?, ?, ?, ?)")) {
-        
-        stmt.setString(1, nomeLivro);
-        stmt.setString(2, nomeAutor);
-        stmt.setString(3, edicao);
-        stmt.setInt(4, Integer.parseInt(codigoBarras));
-        stmt.executeUpdate();
-        
-        JOptionPane.showMessageDialog(this, "Livro cadastrado com sucesso!");
-        atualizarTabelaLivros();
-    } catch (SQLException e) {
-        JOptionPane.showMessageDialog(this, "Erro ao cadastrar livro: " + e.getMessage());
-    } catch (NumberFormatException e) {
-        JOptionPane.showMessageDialog(this, "Código de barras deve ser um número.");
-    }
+try (Connection conn = DataBaseBiblioteca.getConnection();
+     PreparedStatement stmt = conn.prepareStatement("INSERT INTO livros (nomeLivro, nomeAutor, edicao, codBarras, disponivel) VALUES (?, ?, ?, ?, ?)")) {
+    
+    stmt.setString(1, nomeLivro);
+    stmt.setString(2, nomeAutor);
+    stmt.setString(3, edicao);
+    stmt.setString(4, codigoBarras);  // Não é necessário converter para inteiro, pois 'codBarras' é um varchar
+    stmt.setInt(5, 1);  // Aqui estamos definindo o status do livro como disponível (1)
 
+    stmt.executeUpdate();
+    
+    JOptionPane.showMessageDialog(this, "Livro cadastrado com sucesso!");
+    atualizarTabelaLivros();  // Atualizar a tabela que exibe os livros cadastrados
+} catch (SQLException e) {
+    JOptionPane.showMessageDialog(this, "Erro ao cadastrar livro: " + e.getMessage());
+} catch (NumberFormatException e) {
+    JOptionPane.showMessageDialog(this, "Código de barras deve ser um número.");
+}
     }//GEN-LAST:event_btnCadastrarActionPerformed
 
     private void btnEditarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarActionPerformed
